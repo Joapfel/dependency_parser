@@ -11,7 +11,7 @@ class Sent(object):
 
     cols: names of the 10 columns in the conllu format
 
-    id: tuple<int>
+    id: tuple<int>VERB know ADV as ADJ much SCONJ as PRON we AUX can
 
     head: tuple<int|str>
 
