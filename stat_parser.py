@@ -84,7 +84,7 @@ class Parser(object):
                         features.append(0)
 
                 feature_mtrx.append(features)
-
+        print(actions)
         for l in actions: #fill the labels indecies
             if l not in self.action2id:
                 self.action2id[l] = len(self.action2id)
@@ -95,8 +95,8 @@ class Parser(object):
         self.id2action = {v: k for k, v in self.action2id.items()}
         #create sparse matrix & vektor
         X = self.enc.fit_transform(feature_mtrx)
-        y = self.le.fit_transform(labels)
-        return (X,y)
+        y = self.le.fit_transform(labels)#labels
+        return (X,labels)#y
 
     def train(self, sentences):
         X,y = self.feature(sentences)
@@ -135,9 +135,15 @@ class Parser(object):
 
             # create sparse matrix & vektor
             X = self.enc.transform([features])
-            y_pred = self.logreg.predict_log_proba(X).ravel() #numerical
+            #y_pred = self.logreg.predict_log_proba(X).ravel() #numerical
             #prob distr for predictions
-            distr_y = np.argsort(y_pred)
+            #distr_y = np.argsort(y_pred)
+            #distr_y = distr_y[::-1]
+            distr_y = self.logreg.decision_function(X).ravel()
+            #print(distr_y)
+            #print(np.argsort(distr_y))
+            #print(self.logreg.classes_)
+            distr_y = np.argsort(distr_y) #override with indexes
             distr_y = distr_y[::-1]
             for idx in distr_y:
                 act, arg = self.id2action[int(idx)] #actual action
