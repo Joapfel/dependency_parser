@@ -84,7 +84,16 @@ class Parser(object):
                         features.append(0)
 
                 feature_mtrx.append(features)
+
+
         print(actions)
+        tmp = []
+        for t1, t2 in actions:
+            tmp.append(str(t1) + " " + str(t2))
+
+        actions = tmp
+        print(actions)
+
         for l in actions: #fill the labels indecies
             if l not in self.action2id:
                 self.action2id[l] = len(self.action2id)
@@ -96,7 +105,7 @@ class Parser(object):
         #create sparse matrix & vektor
         X = self.enc.fit_transform(feature_mtrx)
         y = self.le.fit_transform(labels)#labels
-        return (X,labels)#y
+        return (X,actions)#y
 
     def train(self, sentences):
         X,y = self.feature(sentences)
@@ -146,7 +155,9 @@ class Parser(object):
             distr_y = np.argsort(distr_y) #override with indexes
             distr_y = distr_y[::-1]
             for idx in distr_y:
-                act, arg = self.id2action[int(idx)] #actual action
+                label = self.logreg.classes_[int(idx)]
+                act, arg = label.split()
+                #act, arg = self.id2action[int(idx)] #actual action
                 if c.doable(act): #check if action is possible
                     getattr(c, act)(arg) #apply the action
                     break
@@ -155,7 +166,7 @@ class Parser(object):
 
 if '__main__' == __name__:
     p = Parser()
-    sentences = conllu.load('Universal Dependencies 2.0/ud-treebanks-v2.0/UD_English/en-ud-train.conllu')#en-ud-train.conllu
+    sentences = conllu.load('Universal Dependencies 2.0/ud-treebanks-v2.0/UD_English/SMALL.txt')#en-ud-train.conllu
     p.train(list(sentences))
 
     unlabeled_true = []
