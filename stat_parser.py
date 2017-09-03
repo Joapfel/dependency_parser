@@ -12,16 +12,13 @@ import numpy as np
 
 class Parser(object):
 
-    __slots__ = 'pos2id', 'form2id', 'action2id', 'id2action', 'logreg', 'enc', 'le', 'unknown'
+    __slots__ = 'pos2id', 'form2id', 'logreg', 'enc', 'unknown'
 
     def __init__(self):
         self.pos2id = {} #features
         self.form2id = {} #features
-        self.action2id = {} #labels encoded as numbers
-        self.id2action = {} #for getting actual labels from encoded numbers
         self.logreg = linear_model.LogisticRegression()
         self.enc = OneHotEncoder()
-        self.le = LabelEncoder()
         self.unknown = "</u>"
 
     def feature(self, sentences): #extract the features for training
@@ -54,7 +51,6 @@ class Parser(object):
                 act, arg = o.predict(c)
                 assert c.doable(act)
                 actions.append((act, arg)) #fill list of actions
-                getattr(c, act)(arg)
                 features = [] #feature vektor of the form stack 3rd,2nd,1st --- 1st,2nd,3rd buffer
                 for i in range(1,4): #add the top 3 words from the stack and the buffer
                     if i <= len(c.stack):
@@ -85,26 +81,16 @@ class Parser(object):
 
                 feature_mtrx.append(features)
 
+                getattr(c, act)(arg)
 
-        print(actions)
+        #tuples to string
         tmp = []
         for t1, t2 in actions:
             tmp.append(str(t1) + " " + str(t2))
-
         actions = tmp
-        print(actions)
 
-        for l in actions: #fill the labels indecies
-            if l not in self.action2id:
-                self.action2id[l] = len(self.action2id)
-        labels = [] #numerical representation of the labels
-        for l in actions:
-            labels.append(self.action2id[l])
-        #reverse the action2id in order to get labels from number representation
-        self.id2action = {v: k for k, v in self.action2id.items()}
         #create sparse matrix & vektor
         X = self.enc.fit_transform(feature_mtrx)
-        y = self.le.fit_transform(labels)#labels
         return (X,actions)#y
 
     def train(self, sentences):
@@ -144,20 +130,15 @@ class Parser(object):
 
             # create sparse matrix & vektor
             X = self.enc.transform([features])
-            #y_pred = self.logreg.predict_log_proba(X).ravel() #numerical
-            #prob distr for predictions
-            #distr_y = np.argsort(y_pred)
-            #distr_y = distr_y[::-1]
-            distr_y = self.logreg.decision_function(X).ravel()
-            #print(distr_y)
-            #print(np.argsort(distr_y))
-            #print(self.logreg.classes_)
-            distr_y = np.argsort(distr_y) #override with indexes
+            y_pred = self.logreg.predict_log_proba(X).ravel() #numerical
+            #get the indecies from low to high values
+            distr_y = np.argsort(y_pred)
+            #from high to low
             distr_y = distr_y[::-1]
+
             for idx in distr_y:
                 label = self.logreg.classes_[int(idx)]
                 act, arg = label.split()
-                #act, arg = self.id2action[int(idx)] #actual action
                 if c.doable(act): #check if action is possible
                     getattr(c, act)(arg) #apply the action
                     break
@@ -182,15 +163,15 @@ if '__main__' == __name__:
             unlabeled_true.append(t_head)
         for p_head in predicted_parse.head:
             unlabeled_pred.append(p_head)
-        for t_labels in j.deprel:
-            labeled_true.append(t_labels)
-        for p_labels in predicted_parse.deprel:
-            labeled_pred.append(p_labels)
+        for t_head,t_labels in zip(j.deprel, j.head):
+            labeled_true.append((t_head, t_labels))
+        for p_head,p_labels in zip(predicted_parse.deprel, predicted_parse.head):
+            labeled_pred.append((p_head,p_labels))
 
     unlabeled_accuracy = metrics.accuracy_score(unlabeled_true, unlabeled_pred)
     print(unlabeled_accuracy)
 
-    labeled_accuracy = 0
+    labeled_accuracy = 0 #metrics.accuracy_score(labeled_true, labeled_pred)
     for i,j in zip(labeled_true, labeled_pred):
         if i == j:
             labeled_accuracy += 1
